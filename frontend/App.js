@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, Text, View, Image, TextInput } from 'react-native';
 
 const app =()=>{
-  const name="gaman";
+  const name="gamana";
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <Text>Hello my name is {name}</Text>
