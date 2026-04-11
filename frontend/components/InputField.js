@@ -1,94 +1,93 @@
-import React, { useMemo, useState } from "react";
-import {
-  View,
-  TextInput,
-  StyleSheet,
-  Pressable,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+// InputField.js — Fixed + Enhanced for proper keyboard handling
+import React, { forwardRef, useImperativeHandle } from 'react';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function InputField({
-  icon,
-  placeholder,
-  secure,
-  value,
-  onChangeText,
-  keyboardType,
-  autoCapitalize,
-  textContentType,
-  autoComplete,
-}) {
-  const [hidePassword, setHidePassword] = useState(secure);
-  const [isFocused, setIsFocused] = useState(false);
-  const showSecureToggle = Boolean(secure);
-
-  const containerStyle = useMemo(
-    () => [
-      styles.container,
-      isFocused ? styles.containerFocused : styles.containerIdle,
-    ],
-    [isFocused]
-  );
+const InputField = forwardRef((props, ref) => {
+  const {
+    icon,
+    label,
+    placeholder,
+    value,
+    onChangeText,
+    secure = false,
+    keyboardType = 'default',
+    textContentType,
+    autoComplete,
+    returnKeyType = 'next',
+    blurOnSubmit = false,
+    autoCapitalize = 'none',
+    onSubmitEditing,
+    ...rest
+  } = props;
 
   return (
-    <View style={containerStyle}>
-      <Ionicons name={icon} size={18} color={isFocused ? "#3B82F6" : "#6B7280"} />
+    <View style={styles.container}>
+      {label && <Text style={styles.label}>{label}</Text>}
 
-      <TextInput
-        placeholder={placeholder}
-        style={styles.input}
-        secureTextEntry={hidePassword}
-        value={value}
-        onChangeText={onChangeText}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        placeholderTextColor="#9CA3AF"
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize ?? "none"}
-        textContentType={textContentType}
-        autoComplete={autoComplete}
-      />
-
-      {showSecureToggle && (
-        <Pressable onPress={() => setHidePassword(!hidePassword)} hitSlop={10}>
+      <View style={styles.inputWrapper}>
+        {icon && (
           <Ionicons
-            name={hidePassword ? "eye-off" : "eye"}
-            size={18}
-            color="#6B7280"
+            name={icon}
+            size={20}
+            color="#64748B"
+            style={styles.icon}
           />
-        </Pressable>
-      )}
+        )}
+
+        <TextInput
+          ref={ref}
+          style={styles.input}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#64748B"
+          secureTextEntry={secure}
+          keyboardType={keyboardType}
+          textContentType={textContentType}
+          autoComplete={autoComplete}
+          returnKeyType={returnKeyType}
+          blurOnSubmit={blurOnSubmit}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+          onSubmitEditing={onSubmitEditing}
+          {...rest}
+        />
+      </View>
     </View>
   );
-}
+});
+
+export default InputField;
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  label: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A2538',
     borderRadius: 16,
     borderWidth: 1,
-    marginBottom: 12,
+    borderColor: '#2A374F',
+    paddingHorizontal: 16,
+    minHeight: 56,
   },
-  containerIdle: {
-    borderColor: "#E5E7EB",
-  },
-  containerFocused: {
-    borderColor: "#3B82F6",
-    shadowColor: "#3B82F6",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+  icon: {
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 15,
-    color: "#111827",
-    paddingVertical: 0,
+    color: '#E8EDF7',
+    fontSize: 16,
+    paddingVertical: 12,
   },
 });
