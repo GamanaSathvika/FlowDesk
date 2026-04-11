@@ -60,7 +60,7 @@ const AuthInput = memo(function AuthInput({
           secureTextEntry={hidden}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
-          placeholderTextColor="#D1D5DB"
+          placeholderTextColor="#9CA3AF"
         />
 
         {secureTextEntry && (
@@ -119,6 +119,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={s.title}>Welcome back</Text>
             <Text style={s.subtitle}>Sign in to continue your productivity journey</Text>
 
+            {/* Input fields — 20px gap after subtitle handled by subtitle marginBottom */}
             <AuthInput
               label="Email"
               placeholder="you@example.com"
@@ -146,7 +147,10 @@ export default function LoginScreen({ navigation }) {
               <Text style={s.forgotText}>Forgot password?</Text>
             </Pressable>
 
-            <GradientButton label="Sign In" onPress={() => {}} />
+            {/* Extra spacing before button */}
+            <View style={s.buttonSpacing}>
+              <GradientButton label="Sign In" onPress={() => {}} />
+            </View>
 
             {/* Divider */}
             <View style={s.divRow}>
@@ -220,17 +224,19 @@ const s = StyleSheet.create({
     letterSpacing: -0.5,
   },
 
+  // ─── Card ────────────────────────────────────────────────────────────────────
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
+    marginTop: 8, // combined with paddingTop:56 in scroll gives ~64px from top edge
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    shadowOpacity: 0.07,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
 
   title: {
@@ -242,11 +248,13 @@ const s = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 28,
+    marginBottom: 20, // spacing between subtitle and first input
     lineHeight: 20,
   },
 
-  fieldBlock: { marginBottom: 18 },
+  // ─── Input Fields ─────────────────────────────────────────────────────────────
+  fieldBlock: { marginBottom: 16 }, // 16px between each input field
+
   fieldLabel: {
     color: '#374151',
     marginBottom: 7,
@@ -257,29 +265,45 @@ const s = StyleSheet.create({
   shell: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    // Clean white background, no dark fill
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    // Subtle depth shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   shellFocused: {
+    // Blue border + slight glow on focus
     borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F8FBFF',
+    shadowColor: '#3B82F6',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
 
   leadIcon: { marginRight: 12 },
   textInput: {
     flex: 1,
-    color: '#111827',
+    color: '#111827',  // dark readable text
     fontSize: 15,
+    // Prevent any platform-default dark background on autofill
+    backgroundColor: 'transparent',
   },
 
+  // ─── Forgot Password ─────────────────────────────────────────────────────────
   forgot: {
     alignSelf: 'flex-end',
     marginTop: 2,
-    marginBottom: 20,
+    marginBottom: 4, // reduced; buttonSpacing handles gap to button
   },
   forgotText: {
     color: '#3B82F6',
@@ -287,6 +311,12 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // 24px gap between password field area and the primary button
+  buttonSpacing: {
+    marginTop: 24,
+  },
+
+  // ─── Divider ─────────────────────────────────────────────────────────────────
   divRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,6 +326,7 @@ const s = StyleSheet.create({
   divLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
   divText: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
 
+  // ─── Switch to Sign Up ────────────────────────────────────────────────────────
   switchRow: {
     alignItems: 'center',
     marginTop: 20,
