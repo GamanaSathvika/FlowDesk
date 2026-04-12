@@ -6,7 +6,7 @@ A modern productivity mobile app designed to help users manage tasks, stay focus
 
 ## ✨ Features
 
-### 🏠 Dashboard (Home)
+### 🏠 Dashboard (Home Page)
 
 * Overview of daily productivity
 * Today's tasks preview
