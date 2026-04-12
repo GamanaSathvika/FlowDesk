@@ -19,6 +19,7 @@ import HomeLandingScreen from './screens/main/HomeLandingScreen';
 import TasksScreen from './screens/main/TasksScreen';
 import FocusScreen from './screens/main/FocusScreen';
 import AnalyticsScreen from './screens/main/AnalyticsScreen';
+import SettingsScreen from './screens/main/SettingsScreen';
 
 import {
   ActivityIndicator,
@@ -83,6 +84,26 @@ function App() {
   const [isAuthed,  setIsAuthed]  = useState(false);
   const [activeTab, setActiveTab] = useState('home');
 
+  // ─── Shared profile state (passed to Home + Settings) ───────────────────
+  const [profile, setProfile] = useState({
+    name: 'Gamana',
+    email: '',
+    phone: '',
+    bio: '',
+    org: '',
+    focusDuration: '25 min',
+    settings: {
+      notifications:  true,
+      darkMode:       false,
+      reminderAlerts: true,
+      focusSound:     true,
+    },
+  });
+
+  const handleSaveProfile = useCallback((updated) => {
+    setProfile(updated);
+  }, []);
+
   const [loginData,  setLoginData]  = useState(initialLogin);
   const [signupData, setSignupData] = useState(initialSignup);
   const [loginErr,   setLoginErr]   = useState('');
@@ -127,11 +148,34 @@ function App() {
 
   // ─── Authenticated shell ─────────────────────────────────────────────────
   if (isAuthed) {
+    // 'settings' and 'logout' are overlay routes, not tab bar items
+    const handleNavigate = (tab) => {
+      if (tab === 'logout') {
+        setIsAuthed(false);
+        setActiveTab('home');
+        return;
+      }
+      setActiveTab(tab);
+    };
+
+    if (activeTab === 'settings') {
+      return (
+        <SafeAreaView style={s.safe}>
+          <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+          <SettingsScreen
+            profile={profile}
+            onSave={handleSaveProfile}
+            onNavigate={handleNavigate}
+          />
+        </SafeAreaView>
+      );
+    }
+
     const screenByTab = {
-      home:      <HomeLandingScreen />,
-      tasks:     <TasksScreen />,
-      focus:     <FocusScreen />,
-      analytics: <AnalyticsScreen />,
+      home:      <HomeLandingScreen profile={profile} onNavigate={handleNavigate} />,
+      tasks:     <TasksScreen onNavigate={handleNavigate} />,
+      focus:     <FocusScreen onNavigate={handleNavigate} />,
+      analytics: <AnalyticsScreen onNavigate={handleNavigate} />,
     };
     return (
       <SafeAreaView style={s.safe}>
@@ -141,7 +185,7 @@ function App() {
             {screenByTab[activeTab] ?? screenByTab.home}
           </View>
         </View>
-        <BottomTabBar activeTab={activeTab} onTabPress={setActiveTab} />
+        <BottomTabBar activeTab={activeTab} onTabPress={handleNavigate} />
       </SafeAreaView>
     );
   }

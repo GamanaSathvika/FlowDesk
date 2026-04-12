@@ -496,7 +496,7 @@ export default function TasksScreen() {
 // ─── Main Styles ──────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0 },
 
   // Header
   header: {
@@ -504,7 +504,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 16 : 12,
+    paddingTop: Platform.OS === 'android' ? 24 : 20,
     paddingBottom: 12,
   },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
