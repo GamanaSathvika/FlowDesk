@@ -328,7 +328,6 @@ const s = StyleSheet.create({
   progressBarBg:   { flex: 1, height: 5, backgroundColor: '#F3F4F6', borderRadius: 99, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 99 },
   progressBarPct:  { fontSize: 11, fontWeight: '700', color: '#3B82F6' },
-
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingBottom: 12, paddingTop: 4,
