@@ -1,5 +1,5 @@
 // screens/main/HomeLandingScreen.js
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const INITIAL_TASKS = [
-  { id: 1, title: 'Design system review',          time: '10:00 AM', tag: 'High',   done: true  },
-  { id: 2, title: 'Sync with Priya on onboarding', time: '12:30 PM', tag: 'Medium', done: true  },
-  { id: 3, title: 'Update dashboard components',   time: '3:00 PM',  tag: 'High',   done: false },
-  { id: 4, title: 'Write release notes for v1.4',  time: '5:00 PM',  tag: 'Medium', done: false },
-  { id: 5, title: 'Review pull requests',          time: '6:00 PM',  tag: 'Low',    done: false },
-];
-
+import { tasksApi } from '../../api/tasks';
 
 const WEEKLY_BARS = [
   { day: 'M', height: 32, active: false },
@@ -118,16 +108,38 @@ function TaskRow({ task, onToggle }) {
 // ─── Home Landing Screen ──────────────────────────────────────────────────────
 
 export default function HomeLandingScreen({ profile, onNavigate }) {
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [tasks, setTasks] = useState([]);
+
+  const refreshTasks = useCallback(async () => {
+    try {
+      const data = await tasksApi.getTasks();
+      setTasks(Array.isArray(data) ? data : data?.tasks || []);
+    } catch (error) {
+      console.log(error);
+      setTasks([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshTasks();
+  }, [refreshTasks]);
 
   // Toggle a task's done state
-  const toggleTask = useCallback((id) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-  }, []);
+  const toggleTask = useCallback(async (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    try {
+      await tasksApi.updateTask(id, { done: !task.done });
+      await refreshTasks();
+    } catch (error) {
+      console.log(error);
+    }
+  }, [tasks, refreshTasks]);
 
   // Progress derived from live task state
   const doneCount = useMemo(() => tasks.filter(t => t.done).length, [tasks]);
-  const pct       = useMemo(() => Math.round((doneCount / tasks.length) * 100), [doneCount, tasks.length]);
+  const pct       = useMemo(() => (tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0), [doneCount, tasks.length]);
 
   // Greeting name — falls back to 'Gamana' if no profile yet
   const displayName = profile?.name?.split(' ')[0] || 'Gamana';

@@ -14,8 +14,10 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import GradientButton from '../components/GradientButton';
 import SecondaryButton from '../components/SecondaryButton';
+import { authApi } from '../api/auth';
 
 const KeyboardContainer = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
 
@@ -84,9 +86,34 @@ export default function LoginScreen({ navigation }) {
     email: '',
     password: '',
   });
+  const [loading, setLoading] = useState(false);
 
   const handleEmail    = useCallback((t) => setForm((p) => ({ ...p, email: t })), []);
   const handlePassword = useCallback((t) => setForm((p) => ({ ...p, password: t })), []);
+
+  const handleLogin = useCallback(async () => {
+    if (loading) return;
+    if (!form.email.trim() || !form.password.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await authApi.login({
+        email: form.email.trim(),
+        password: form.password,
+      });
+
+      if (response?.token) {
+        global.authToken = response.token;
+        await AsyncStorage.setItem('token', response.token);
+      }
+      if (response?.user) global.currentUser = response.user;
+      navigation.replace('Main');
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [form.email, form.password, loading, navigation]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -149,7 +176,7 @@ export default function LoginScreen({ navigation }) {
 
             {/* Extra spacing before button */}
             <View style={s.buttonSpacing}>
-              <GradientButton label="Sign In" onPress={() => {}} />
+              <GradientButton label="Sign In" onPress={handleLogin} disabled={loading} />
             </View>
 
             {/* Divider */}

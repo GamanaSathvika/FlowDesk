@@ -1,5 +1,5 @@
 // screens/main/AnalyticsScreen.js
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getAnalytics } from '../../api/analytics';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -19,61 +20,6 @@ const RANGES = [
   { key: 'month',   label: 'This month' },
   { key: 'quarter', label: 'Quarter'    },
 ];
-
-const DATA = {
-  week: {
-    bars: [
-      { day: 'Mon', tasks: 4,  focus: 55  },
-      { day: 'Tue', tasks: 6,  focus: 80  },
-      { day: 'Wed', tasks: 9,  focus: 100 },
-      { day: 'Thu', tasks: 7,  focus: 90  },
-      { day: 'Fri', tasks: 5,  focus: 70  },
-      { day: 'Sat', tasks: 2,  focus: 30  },
-      { day: 'Sun', tasks: 1,  focus: 15  },
-    ],
-    summary:    { tasks: 12,    focus: '3h 20m', score: 82   },
-    focusStats: { total: '6h 40m', avg: '1h 20m', sessions: 5 },
-    totalTasks: 34,
-    bestDay:    'Wed',
-    avgPerDay:  '4.9',
-    completion: { completed: 72, inProgress: 18, pending: 10 },
-    insight:    'You were most productive on Wednesday. Focus time increased by 20% this week compared to last week. You\'re on track to hit your weekly goal!',
-    trend:      { tasks: '+3 vs yesterday', focus: '↑ 20% this week', score: '↑ 5% vs last week' },
-  },
-  month: {
-    bars: [
-      { day: 'W1', tasks: 22, focus: 72  },
-      { day: 'W2', tasks: 31, focus: 88  },
-      { day: 'W3', tasks: 28, focus: 95  },
-      { day: 'W4', tasks: 34, focus: 100 },
-    ],
-    summary:    { tasks: 124,   focus: '14h 20m', score: 79 },
-    focusStats: { total: '14h 20m', avg: '1h 26m', sessions: 10 },
-    totalTasks: 115,
-    bestDay:    'W4',
-    avgPerDay:  '28.75',
-    completion: { completed: 68, inProgress: 20, pending: 12 },
-    insight:    'This month you completed 124 tasks — a personal best! Your average focus session is 1h 26m, up 15% from last month.',
-    trend:      { tasks: '↑ 8% vs last month', focus: '↑ 15% vs last month', score: '↑ 3% vs last month' },
-  },
-  quarter: {
-    bars: [
-      { day: 'M1', tasks: 88,  focus: 70  },
-      { day: 'M2', tasks: 104, focus: 85  },
-      { day: 'M3', tasks: 124, focus: 100 },
-    ],
-    summary:    { tasks: 316,   focus: '42h 10m', score: 79 },
-    focusStats: { total: '42h 10m', avg: '1h 24m', sessions: 30 },
-    totalTasks: 316,
-    bestDay:    'M3',
-    avgPerDay:  '105.3',
-    completion: { completed: 70, inProgress: 18, pending: 12 },
-    insight:    'Your best quarter yet. Productivity score averaged 79% across 12 weeks. Wednesday mornings remain your peak performance window.',
-    trend:      { tasks: '↑ 19% vs last Q', focus: '↑ 22% vs last Q', score: '↑ 6% vs last Q' },
-  },
-};
-
-const STREAK_DAYS = 5;
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -132,21 +78,41 @@ function SegmentBar({ label, pct, color }) {
 
 export default function AnalyticsScreen() {
   const [range, setRange] = useState('week');
-  const d = DATA[range];
+  const [analyticsData, setAnalyticsData] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadAnalytics = async () => {
+      try {
+        const data = await getAnalytics(range);
+        if (!mounted) return;
+        setAnalyticsData(data);
+      } catch (error) {
+        console.log(error);
+        if (mounted) setAnalyticsData(null);
+      }
+    };
+
+    loadAnalytics();
+    return () => { mounted = false; };
+  }, [range]);
+
+  const d = analyticsData ?? {};
 
   const weeklyBarColor = useCallback((item) => {
-    if (item.label === d.bestDay) return '#3B82F6';
+    if (item.label === d?.bestDay) return '#3B82F6';
     if (item.v >= 7)  return '#93C5FD';
     if (item.v >= 4)  return '#BFDBFE';
     return '#DBEAFE';
-  }, [d.bestDay]);
+  }, [d?.bestDay]);
 
   const focusBarColor = useCallback((item) => {
-    if (item.label === d.bestDay) return '#16A34A';
+    if (item.label === d?.bestDay) return '#16A34A';
     if (item.v >= 80) return '#4ADE80';
     if (item.v >= 50) return '#86EFAC';
     return '#BBF7D0';
-  }, [d.bestDay]);
+  }, [d?.bestDay]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -194,27 +160,27 @@ export default function AnalyticsScreen() {
             <View style={[s.sumIcon, { backgroundColor: '#EFF6FF' }]}>
               <Ionicons name="checkmark-done-outline" size={15} color="#3B82F6" />
             </View>
-            <Text style={s.sumVal}>{d.summary.tasks}</Text>
+            <Text style={s.sumVal}>{d?.summary?.tasks ?? 0}</Text>
             <Text style={s.sumLbl}>Tasks done{'\n'}today</Text>
-            <Text style={[s.sumTrend, { color: '#16A34A' }]}>↑ {d.trend.tasks}</Text>
+            <Text style={[s.sumTrend, { color: '#16A34A' }]}>↑ {d?.trend?.tasks ?? ''}</Text>
           </View>
 
           <View style={s.sumCard}>
             <View style={[s.sumIcon, { backgroundColor: '#F0FDF4' }]}>
               <Ionicons name="time-outline" size={15} color="#16A34A" />
             </View>
-            <Text style={s.sumVal}>{d.summary.focus}</Text>
+            <Text style={s.sumVal}>{d?.summary?.focus ?? '0m'}</Text>
             <Text style={s.sumLbl}>Focus{'\n'}today</Text>
-            <Text style={[s.sumTrend, { color: '#16A34A' }]}>{d.trend.focus}</Text>
+            <Text style={[s.sumTrend, { color: '#16A34A' }]}>{d?.trend?.focus ?? ''}</Text>
           </View>
 
           <View style={s.sumCard}>
             <View style={[s.sumIcon, { backgroundColor: '#FFFBEB' }]}>
               <Ionicons name="star-outline" size={15} color="#D97706" />
             </View>
-            <Text style={s.sumVal}>{d.summary.score}%</Text>
+            <Text style={s.sumVal}>{d?.summary?.score ?? 0}%</Text>
             <Text style={s.sumLbl}>Productivity{'\n'}score</Text>
-            <Text style={[s.sumTrend, { color: '#16A34A' }]}>{d.trend.score}</Text>
+            <Text style={[s.sumTrend, { color: '#16A34A' }]}>{d?.trend?.score ?? ''}</Text>
           </View>
         </View>
 
@@ -227,23 +193,23 @@ export default function AnalyticsScreen() {
             badgeTextStyle={{ color: '#16A34A' }}
           />
           <BarChart
-            data={d.bars.map(b => ({ v: b.tasks, label: b.day }))}
+            data={(d?.bars ?? []).map(b => ({ v: b.tasks, label: b.day }))}
             barColor={weeklyBarColor}
             height={80}
           />
           <View style={s.chartFooter}>
             <View style={s.chartStat}>
-              <Text style={s.chartStatVal}>{d.totalTasks}</Text>
+              <Text style={s.chartStatVal}>{d?.totalTasks ?? 0}</Text>
               <Text style={s.chartStatLbl}>Total tasks</Text>
             </View>
             <View style={s.chartStatDivider} />
             <View style={s.chartStat}>
-              <Text style={[s.chartStatVal, { color: '#3B82F6' }]}>{d.bestDay}</Text>
+              <Text style={[s.chartStatVal, { color: '#3B82F6' }]}>{d?.bestDay ?? '-'}</Text>
               <Text style={s.chartStatLbl}>Best day</Text>
             </View>
             <View style={s.chartStatDivider} />
             <View style={s.chartStat}>
-              <Text style={s.chartStatVal}>{d.avgPerDay}</Text>
+              <Text style={s.chartStatVal}>{d?.avgPerDay ?? 0}</Text>
               <Text style={s.chartStatLbl}>Avg / day</Text>
             </View>
           </View>
@@ -253,30 +219,30 @@ export default function AnalyticsScreen() {
         <SectionCard>
           <CardHeader
             title="Focus Time"
-            badge={d.focusStats.total + ' this week'}
+            badge={(d?.focusStats?.total ?? '0m') + ' this week'}
             badgeStyle={s.badgeBlue}
             badgeTextStyle={{ color: '#1D4ED8' }}
           />
           <View style={s.focusStatsRow}>
             <View style={s.focusStat}>
-              <Text style={s.focusStatVal}>{d.focusStats.total}</Text>
+              <Text style={s.focusStatVal}>{d?.focusStats?.total ?? '0m'}</Text>
               <Text style={s.focusStatLbl}>Total</Text>
             </View>
             <View style={s.focusStatDivider} />
             <View style={s.focusStat}>
-              <Text style={s.focusStatVal}>{d.focusStats.avg}</Text>
+              <Text style={s.focusStatVal}>{d?.focusStats?.avg ?? '0m'}</Text>
               <Text style={s.focusStatLbl}>Avg session</Text>
             </View>
             <View style={s.focusStatDivider} />
             <View style={s.focusStat}>
-              <Text style={s.focusStatVal}>{d.focusStats.sessions}</Text>
+              <Text style={s.focusStatVal}>{d?.focusStats?.sessions ?? 0}</Text>
               <Text style={s.focusStatLbl}>Sessions</Text>
             </View>
           </View>
 
           <Text style={s.sectionMicroLbl}>DAILY BREAKDOWN</Text>
           <BarChart
-            data={d.bars.map(b => ({ v: b.focus, label: b.day }))}
+            data={(d?.bars ?? []).map(b => ({ v: b.focus, label: b.day }))}
             barColor={focusBarColor}
             height={52}
           />
@@ -286,13 +252,13 @@ export default function AnalyticsScreen() {
         <SectionCard>
           <CardHeader
             title="Task Completion"
-            badge="10 pending"
+            badge={`${d?.completion?.pending ?? 0} pending`}
             badgeStyle={s.badgeAmber}
             badgeTextStyle={{ color: '#D97706' }}
           />
-          <SegmentBar label="Completed"   pct={d.completion.completed}   color="#3B82F6" />
-          <SegmentBar label="In Progress" pct={d.completion.inProgress}  color="#F59E0B" />
-          <SegmentBar label="Pending"     pct={d.completion.pending}     color="#D1D5DB" />
+          <SegmentBar label="Completed"   pct={d?.completion?.completed ?? 0}   color="#3B82F6" />
+          <SegmentBar label="In Progress" pct={d?.completion?.inProgress ?? 0}  color="#F59E0B" />
+          <SegmentBar label="Pending"     pct={d?.completion?.pending ?? 0}     color="#D1D5DB" />
 
           <View style={s.legendRow}>
             {[
@@ -314,7 +280,7 @@ export default function AnalyticsScreen() {
             <Ionicons name="flame" size={26} color="#F97316" />
           </View>
           <View style={s.streakBody}>
-            <Text style={s.streakVal}>{STREAK_DAYS}-day streak</Text>
+            <Text style={s.streakVal}>{d?.streakDays ?? 0}-day streak</Text>
             <Text style={s.streakLbl}>Keep going — you're on fire!</Text>
             <View style={s.streakDots}>
               {Array.from({ length: 7 }).map((_, i) => (
@@ -322,7 +288,7 @@ export default function AnalyticsScreen() {
                   key={i}
                   style={[
                     s.streakDot,
-                    { backgroundColor: i < STREAK_DAYS ? '#3B82F6' : '#E5E7EB' },
+                    { backgroundColor: i < (d?.streakDays ?? 0) ? '#3B82F6' : '#E5E7EB' },
                   ]}
                 />
               ))}
@@ -340,7 +306,7 @@ export default function AnalyticsScreen() {
           />
           <View style={{ flex: 1 }}>
             <Text style={s.insightEyebrow}>PERFORMANCE INSIGHT</Text>
-            <Text style={s.insightText}>{d.insight}</Text>
+            <Text style={s.insightText}>{d?.insight ?? ''}</Text>
           </View>
         </View>
 

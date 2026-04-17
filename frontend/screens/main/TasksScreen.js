@@ -1,5 +1,5 @@
 // screens/main/TasksScreen.js
-import React, { useState, useCallback, useRef, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,17 +17,13 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { tasksApi } from '../../api/tasks';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const INITIAL_TASKS = [
-  { id: 1,  title: 'Update dashboard components',      sub: 'Due 3:00 PM · Design',       tag: 'High',   done: false },
-  { id: 2,  title: 'Write release notes for v1.4',     sub: 'Due 5:00 PM · Writing',      tag: 'Medium', done: false },
-  { id: 3,  title: 'Review pull requests',             sub: 'Due 6:00 PM · Engineering',  tag: 'Low',    done: false },
-  { id: 4,  title: 'Prepare quarterly report',         sub: 'Due Tomorrow · Finance',     tag: 'High',   done: false },
-  { id: 5,  title: 'Team standup prep',                sub: 'Due 9:00 AM · Meetings',     tag: 'Medium', done: false },
-  { id: 6,  title: 'Design system audit',              sub: 'Due Tomorrow · Design',      tag: 'Low',    done: false },
-];
+const getTasks = tasksApi.getTasks;
+const getArchivedTasks = tasksApi.getArchivedTasks;
+const createTask = tasksApi.create;
+const updateTask = tasksApi.updateTask;
+const deleteTask = tasksApi.deleteTask;
 
 const FILTERS = [
   { key: 'all',       label: 'All'           },
@@ -42,92 +38,6 @@ const TAG_CFG = {
   Medium: { bg: '#FFFBEB', text: '#D97706' },
   Low:    { bg: '#F0FDF4', text: '#16A34A' },
 };
-
-let nextId = 11;
-let nextArchiveId = 1;
-
-const tasksStore = {
-  state: {
-    tasks: INITIAL_TASKS,
-    archivedTasks: [],
-  },
-  listeners: new Set(),
-};
-
-function emitTasksStoreChange() {
-  tasksStore.listeners.forEach(listener => listener());
-}
-
-function subscribeTasksStore(listener) {
-  tasksStore.listeners.add(listener);
-  return () => tasksStore.listeners.delete(listener);
-}
-
-function getTasksStoreSnapshot() {
-  return tasksStore.state;
-}
-
-function setTasksStoreState(updater) {
-  const nextState = typeof updater === 'function' ? updater(tasksStore.state) : updater;
-  tasksStore.state = nextState;
-  emitTasksStoreChange();
-}
-
-function useTasksStore() {
-  const { tasks, archivedTasks } = useSyncExternalStore(
-    subscribeTasksStore,
-    getTasksStoreSnapshot,
-    getTasksStoreSnapshot
-  );
-
-  const archiveTask = useCallback((task, reason) => {
-    setTasksStoreState(prev => ({
-      ...prev,
-      tasks: prev.tasks.filter(t => t.id !== task.id),
-      archivedTasks: [
-        { id: nextArchiveId++, task: reason === 'completed' ? { ...task, done: true } : task, reason, archivedAt: new Date() },
-        ...prev.archivedTasks,
-      ],
-    }));
-  }, []);
-
-  const upsertTask = useCallback((taskData, editingTask) => {
-    setTasksStoreState(prev => ({
-      ...prev,
-      tasks: editingTask
-        ? prev.tasks.map(t => (t.id === editingTask.id ? { ...t, ...taskData } : t))
-        : [...prev.tasks, { id: nextId++, done: false, ...taskData }],
-    }));
-  }, []);
-
-  const restoreArchivedTask = useCallback((archiveId) => {
-    setTasksStoreState(prev => {
-      const item = prev.archivedTasks.find(i => i.id === archiveId);
-      if (!item) return prev;
-      return {
-        ...prev,
-        tasks: [...prev.tasks, { ...item.task, done: false }],
-        archivedTasks: prev.archivedTasks.filter(i => i.id !== archiveId),
-      };
-    });
-  }, []);
-
-  const deleteArchivedTask = useCallback((archiveId) => {
-    setTasksStoreState(prev => ({
-      ...prev,
-      archivedTasks: prev.archivedTasks.filter(i => i.id !== archiveId),
-    }));
-  }, []);
-
-  return {
-    tasks,
-    archivedTasks,
-    archiveTask,
-    upsertTask,
-    restoreArchivedTask,
-    deleteArchivedTask,
-  };
-}
 
 // ─── Add / Edit Modal ─────────────────────────────────────────────────────────
 
@@ -509,14 +419,8 @@ function EmptyState({ onAdd }) {
 // ─── Tasks Screen ─────────────────────────────────────────────────────────────
 
 export default function TasksScreen() {
-  const {
-    tasks,
-    archivedTasks,
-    archiveTask,
-    upsertTask,
-    restoreArchivedTask,
-    deleteArchivedTask,
-  } = useTasksStore();
+  const [tasks,          setTasks]          = useState([]);
+  const [archivedTasks,  setArchivedTasks]  = useState([]);
   const [search,         setSearch]         = useState('');
   const [activeFilter,   setActiveFilter]   = useState('all');
 
@@ -531,6 +435,24 @@ export default function TasksScreen() {
   // Archive modal
   const [archiveVisible, setArchiveVisible] = useState(false);
 
+  const refreshTasks = useCallback(async () => {
+    try {
+      const [active, archived] = await Promise.all([
+        getTasks(),
+        getArchivedTasks(),
+      ]);
+      setTasks(Array.isArray(active) ? active : active?.tasks || []);
+      setArchivedTasks(Array.isArray(archived) ? archived : archived?.tasks || []);
+    } catch (error) {
+      setTasks([]);
+      setArchivedTasks([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshTasks();
+  }, [refreshTasks]);
+
   // ── Derived lists
   const filtered = tasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
@@ -543,19 +465,21 @@ export default function TasksScreen() {
   const completed = filtered.filter(t =>  t.done);
 
   // ── Handlers
-  const toggleTask = useCallback((id) => {
+  const toggleTask = useCallback(async (id) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
 
-    if (!task.done) {
-      archiveTask(task, 'completed');
-    } else {
-      setTasksStoreState(prev => ({
-        ...prev,
-        tasks: prev.tasks.map(t => (t.id === id ? { ...t, done: false } : t)),
-      }));
+    try {
+      if (!task.done) {
+        await updateTask(id, { done: true, archived: true });
+      } else {
+        await updateTask(id, { done: false, archived: false });
+      }
+      await refreshTasks();
+    } catch (error) {
+      // Keep current UI state on failure
     }
-  }, [tasks, archiveTask]);
+  }, [tasks, refreshTasks]);
 
   const openSheet = useCallback((task) => {
     setSelectedTask(task);
@@ -581,26 +505,50 @@ export default function TasksScreen() {
   }, [selectedTask, closeSheet]);
 
   // Archive instead of delete
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!selectedTask) return;
-    archiveTask(selectedTask, 'deleted');
-    closeSheet();
-  }, [selectedTask, closeSheet, archiveTask]);
+    try {
+      await updateTask(selectedTask.id, { archived: true });
+      await refreshTasks();
+      closeSheet();
+    } catch (error) {
+      closeSheet();
+    }
+  }, [selectedTask, closeSheet, refreshTasks]);
 
-  const handleSave = useCallback((data) => {
-    upsertTask(data, editingTask);
-    setModalVisible(false);
-    setEditingTask(null);
-  }, [editingTask, upsertTask]);
+  const handleSave = useCallback(async (data) => {
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, { ...editingTask, ...data });
+      } else {
+        await createTask({ done: false, archived: false, ...data });
+      }
+      await refreshTasks();
+      setModalVisible(false);
+      setEditingTask(null);
+    } catch (error) {
+      // Keep modal open on failure
+    }
+  }, [editingTask, refreshTasks]);
 
   // ── Archive handlers
-  const handleRestore = useCallback((archiveId) => {
-    restoreArchivedTask(archiveId);
-  }, [restoreArchivedTask]);
+  const handleRestore = useCallback(async (archiveId) => {
+    try {
+      await updateTask(archiveId, { archived: false, done: false });
+      await refreshTasks();
+    } catch (error) {
+      // Keep current UI state on failure
+    }
+  }, [refreshTasks]);
 
-  const handleDeletePermanently = useCallback((archiveId) => {
-    deleteArchivedTask(archiveId);
-  }, [deleteArchivedTask]);
+  const handleDeletePermanently = useCallback(async (archiveId) => {
+    try {
+      await deleteTask(archiveId);
+      await refreshTasks();
+    } catch (error) {
+      // Keep current UI state on failure
+    }
+  }, [refreshTasks]);
 
   const archiveBadge = archivedTasks.length;
 
@@ -732,7 +680,11 @@ export default function TasksScreen() {
 
       <ArchiveModal
         visible={archiveVisible}
-        archivedTasks={archivedTasks}
+        archivedTasks={archivedTasks.map(task => ({
+          id: task.id,
+          task,
+          reason: task.done ? 'completed' : 'deleted',
+        }))}
         onClose={() => setArchiveVisible(false)}
         onRestore={handleRestore}
         onDeletePermanently={handleDeletePermanently}

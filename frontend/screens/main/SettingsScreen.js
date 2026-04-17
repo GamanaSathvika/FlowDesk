@@ -1,5 +1,5 @@
 // screens/main/SettingsScreen.js
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userApi } from '../../api/user';
 
 // ─── Focus Duration Options ───────────────────────────────────────────────────
 const FOCUS_OPTIONS = ['15 min', '25 min', '30 min', '45 min', '60 min'];
@@ -147,6 +149,38 @@ export default function SettingsScreen({ profile, onSave, onNavigate }) {
   const [saved,  setSaved]        = useState(false);
   const [editingName, setEditingName] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const data = await userApi.getProfile();
+        if (!mounted || !data) return;
+
+        setForm({
+          name: data.name ?? 'Gamana',
+          email: data.email ?? '',
+          phone: data.phone ?? '',
+          bio: data.bio ?? '',
+          org: data.org ?? '',
+          focusDuration: data.focusDuration ?? '25 min',
+        });
+
+        setSettings({
+          notifications: data?.settings?.notifications ?? true,
+          darkMode: data?.settings?.darkMode ?? false,
+          reminderAlerts: data?.settings?.reminderAlerts ?? true,
+          focusSound: data?.settings?.focusSound ?? true,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    loadProfile();
+    return () => { mounted = false; };
+  }, []);
+
   const setField = useCallback((key, val) => {
     setForm((p) => ({ ...p, [key]: val }));
     setErrors((p) => ({ ...p, [key]: false }));
@@ -159,7 +193,7 @@ export default function SettingsScreen({ profile, onSave, onNavigate }) {
   }, []);
 
   // ── Validate & Save ──
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     const newErrors = {};
     const emailOk = form.email.trim().length > 0;
     const phoneOk = form.phone.trim().length > 0;
@@ -175,8 +209,21 @@ export default function SettingsScreen({ profile, onSave, onNavigate }) {
       return;
     }
 
-    onSave?.({ ...form, settings });
-    setSaved(true);
+    try {
+      await userApi.updateProfile({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        bio: form.bio,
+        org: form.org,
+        focusDuration: form.focusDuration,
+        settings,
+      });
+      onSave?.({ ...form, settings });
+      setSaved(true);
+    } catch (error) {
+      console.log(error);
+    }
   }, [form, settings, onSave]);
 
   const handleLogout = useCallback(() => {
@@ -185,7 +232,18 @@ export default function SettingsScreen({ profile, onSave, onNavigate }) {
       'Are you sure you want to log out of FlowDesk?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: () => onNavigate?.('logout') },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('token');
+              onNavigate?.('logout');
+            } catch (error) {
+              console.log(error);
+            }
+          },
+        },
       ]
     );
   }, [onNavigate]);

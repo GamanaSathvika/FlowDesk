@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { tasksApi } from '../../api/tasks';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -24,15 +26,7 @@ const MODES = [
   { key: 'long',  label: 'Long Break',  duration: 15 * 60, color: '#7C3AED', bgColor: '#F5F3FF', tip: 'Great work! Take 15 minutes to recharge fully.' },
 ];
 
-const SAMPLE_TASKS = [
-  'Finish DSA Problem',
-  'Review pull requests',
-  'Write release notes for v1.4',
-  'Update dashboard components',
-  'Prepare quarterly report',
-  'Team standup prep',
-  'Design system audit',
-];
+const SESSION_STORAGE_KEY = 'focus_session_stats';
 
 const RING_SIZE   = 220;
 const RING_STROKE = 10;
@@ -102,7 +96,7 @@ function TimerRing({ remaining, total, color, state }) {
 
 // ─── Task Picker Modal ────────────────────────────────────────────────────────
 
-function TaskPicker({ visible, current, onSelect, onClose }) {
+function TaskPicker({ visible, current, onSelect, onClose, tasks }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -113,7 +107,7 @@ function TaskPicker({ visible, current, onSelect, onClose }) {
         <Text style={tp.title}>Choose a task</Text>
         <Text style={tp.sub}>What are you focusing on?</Text>
         <ScrollView showsVerticalScrollIndicator={false}>
-          {SAMPLE_TASKS.map((task) => {
+          {tasks.map((task) => {
             const active = task === current;
             return (
               <Pressable
@@ -140,12 +134,13 @@ function TaskPicker({ visible, current, onSelect, onClose }) {
 // ─── Focus Screen ─────────────────────────────────────────────────────────────
 
 export default function FocusScreen() {
+  const [tasks,         setTasks]         = useState([]);
   const [modeIdx,       setModeIdx]       = useState(0);
   const [remaining,     setRemaining]     = useState(MODES[0].duration);
   const [timerState,    setTimerState]    = useState('idle');   // idle | running | paused
-  const [currentTask,   setCurrentTask]   = useState(SAMPLE_TASKS[0]);
-  const [sessionsToday, setSessionsToday] = useState(5);
-  const [totalFocusSecs,setTotalFocusSecs]= useState(2 * 3600 + 10 * 60);
+  const [currentTask,   setCurrentTask]   = useState('');
+  const [sessionsToday, setSessionsToday] = useState(0);
+  const [totalFocusSecs,setTotalFocusSecs]= useState(0);
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const intervalRef = useRef(null);
@@ -153,6 +148,61 @@ export default function FocusScreen() {
 
   // ── Clear interval on unmount
   useEffect(() => () => clearInterval(intervalRef.current), []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadTasks = async () => {
+      try {
+        const data = await tasksApi.getTasks();
+        if (!mounted) return;
+        const list = Array.isArray(data) ? data : data?.tasks || [];
+        const titles = list.map((t) => t.title).filter(Boolean);
+        setTasks(titles);
+        setCurrentTask(prev => (prev || titles[0] || ''));
+      } catch (error) {
+        console.log(error);
+        if (mounted) setTasks([]);
+      }
+    };
+
+    loadTasks();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSessionStats = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+        if (!mounted || !raw) return;
+        const parsed = JSON.parse(raw);
+        setSessionsToday(parsed.sessionsToday ?? 0);
+        setTotalFocusSecs(parsed.totalFocusSecs ?? 0);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    loadSessionStats();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    const persistSessionStats = async () => {
+      try {
+        await AsyncStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({ sessionsToday, totalFocusSecs })
+        );
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    persistSessionStats();
+  }, [sessionsToday, totalFocusSecs]);
 
   // ── Tick
   const tick = useCallback(() => {
@@ -323,6 +373,7 @@ export default function FocusScreen() {
         current={currentTask}
         onSelect={setCurrentTask}
         onClose={() => setPickerVisible(false)}
+        tasks={tasks}
       />
     </SafeAreaView>
   );

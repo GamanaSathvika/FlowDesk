@@ -1,23 +1,24 @@
 import { StyleSheet } from 'react-native';
+import { colors, spacing } from '../../styles/tokens';
 
 export const styles = StyleSheet.create({
   safeBar: {
     paddingHorizontal: 14,
     paddingBottom: 10,
-    paddingTop: 4,
+    paddingTop: spacing.xs,
   },
   barShell: {
     borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.72)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.65)',
-    shadowColor: '#0F172A',
+    shadowColor: colors.slate900,
     shadowOpacity: 0.12,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   row: {
     flexDirection: 'row',
@@ -36,7 +37,7 @@ export const styles = StyleSheet.create({
     width: 26,
     height: 3,
     borderRadius: 4,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.blue500,
     opacity: 0,
   },
   indicatorActive: {
@@ -45,19 +46,19 @@ export const styles = StyleSheet.create({
   icon: {
     fontSize: 18,
     lineHeight: 18,
-    color: '#6B7280',
+    color: colors.gray500,
   },
   iconActive: {
-    color: '#3B82F6',
+    color: colors.blue500,
   },
   label: {
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.15,
-    color: '#6B7280',
+    color: colors.gray500,
   },
   labelActive: {
-    color: '#3B82F6',
+    color: colors.blue500,
   },
 });
 

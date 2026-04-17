@@ -14,9 +14,28 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import GradientButton from '../components/GradientButton';
+import { authApi } from '../api/auth';
+import { colors, spacing } from '../styles/tokens';
 
 const KeyboardContainer = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+const COLORS = {
+  background: '#F9FAFB',
+  primary: colors.blue500,
+  textPrimary: colors.gray900,
+  textSecondary: colors.gray500,
+  border: colors.gray200,
+  accentBg: colors.blue50,
+  accentBorder: colors.blue100,
+};
+
+const SPACING = {
+  screenX: spacing['2xl'],
+  screenTop: 56,
+  screenBottom: 48,
+  logoBottom: 32,
+};
 
 // Reusable Auth Input Component
 const AuthInput = memo(function AuthInput({
@@ -86,10 +105,36 @@ export default function SignUpScreen({ navigation }) {
     email: '',
     password: '',
   });
+  const [loading, setLoading] = useState(false);
 
   const handleName     = useCallback((t) => setForm((p) => ({ ...p, name: t })), []);
   const handleEmail    = useCallback((t) => setForm((p) => ({ ...p, email: t })), []);
   const handlePassword = useCallback((t) => setForm((p) => ({ ...p, password: t })), []);
+
+  const handleSignup = useCallback(async () => {
+    if (loading) return;
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await authApi.signup({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+      });
+
+      if (response?.token) {
+        global.authToken = response.token;
+        await AsyncStorage.setItem('token', response.token);
+      }
+      if (response?.user) global.currentUser = response.user;
+      navigation.replace('Main');
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [form.name, form.email, form.password, loading, navigation]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -162,7 +207,7 @@ export default function SignUpScreen({ navigation }) {
               returnKeyType="done"
             />
 
-            <GradientButton label="Create Account" onPress={() => {}} />
+            <GradientButton label="Create Account" onPress={handleSignup} disabled={loading} />
 
             {/* Terms */}
             <Text style={s.terms}>
@@ -190,7 +235,7 @@ export default function SignUpScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: COLORS.background },
   flex: { flex: 1 },
 
   orb: { position: 'absolute', borderRadius: 999 },
@@ -199,26 +244,26 @@ const s = StyleSheet.create({
 
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 56,
-    paddingBottom: 48,
+    paddingHorizontal: SPACING.screenX,
+    paddingTop: SPACING.screenTop,
+    paddingBottom: SPACING.screenBottom,
   },
 
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: SPACING.logoBottom,
   },
   logoIconWrap: {
     width: 80,
     height: 80,
     borderRadius: 22,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.accentBg,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: COLORS.accentBorder,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-    shadowColor: '#3B82F6',
+    shadowColor: COLORS.primary,
     shadowOpacity: 0.12,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -231,16 +276,16 @@ const s = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: COLORS.textPrimary,
     letterSpacing: -0.5,
   },
 
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 20,
@@ -321,6 +366,6 @@ const s = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 4,
   },
-  switchText: { color: '#6B7280', fontSize: 14 },
-  switchAccent: { color: '#3B82F6', fontWeight: '700' },
+  switchText: { color: COLORS.textSecondary, fontSize: 14 },
+  switchAccent: { color: COLORS.primary, fontWeight: '700' },
 });
